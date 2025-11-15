@@ -1,43 +1,64 @@
 import React, { useState, useEffect } from 'react';
 import { Brain, Shield, Zap, Heart, Sparkles, Globe2, Award, ChevronRight, TrendingUp } from 'lucide-react';
 
-// Animated counter hook
+// Custom hook for animating a number from 0 to a target value.
+// It's a nice little touch to make the stats feel more dynamic.
 const useCounter = (end, duration = 2000) => {
+  // 'count' is the animated number we'll display.
   const [count, setCount] = useState(0);
+  // 'hasAnimated' is a flag to make sure the animation only runs once.
   const [hasAnimated, setHasAnimated] = useState(false);
 
   useEffect(() => {
+    // If we've already animated, don't do it again.
     if (hasAnimated) return;
-    setHasAnimated(true);
-    
+    setHasAnimated(true); // Mark as animated.
+
     let startTime = null;
+
+    // The 'animate' function is what does the actual counting up.
     const animate = (timestamp) => {
+      // Initialize startTime on the first frame.
       if (!startTime) startTime = timestamp;
+      // Calculate how far along we are in the animation (0 to 1).
       const progress = Math.min((timestamp - startTime) / duration, 1);
+      // Update the count based on the progress.
       setCount(Math.floor(progress * end));
+
+      // If we're not done yet, request another frame.
       if (progress < 1) {
         requestAnimationFrame(animate);
       }
     };
-    
+
+    // A slight delay before starting the animation.
+    // This gives the page a moment to settle.
     const timer = setTimeout(() => {
       requestAnimationFrame(animate);
     }, 500);
-    
+
+    // Cleanup: if the component unmounts, clear the timer.
     return () => clearTimeout(timer);
-  }, [end, duration, hasAnimated]);
+  }, [end, duration, hasAnimated]); // Dependencies for the effect.
 
   return count;
 };
 
+// The main component for the "About" page.
 export default function About() {
+  // 'hoveredCard' keeps track of which feature card is being hovered.
+  // This is used for the subtle hover animations.
   const [hoveredCard, setHoveredCard] = useState(null);
+  // 'expandedStep' tracks which "How It Works" step is open.
   const [expandedStep, setExpandedStep] = useState(null);
 
+  // Initialize the animated counters.
   const postsCount = useCounter(1200000, 2000);
   const accuracyCount = useCounter(85, 2000);
   const countriesCount = useCounter(50, 2000);
 
+  // A simple array of objects for the feature cards.
+  // This makes it easy to map over and render them.
   const features = [
     {
       icon: Shield,
@@ -69,6 +90,7 @@ export default function About() {
     }
   ];
 
+  // Data for the "How It Works" section.
   const steps = [
     {
       num: 1,
@@ -97,6 +119,8 @@ export default function About() {
   ];
 
   return (
+    // This is a bit of a hack to make the component take up the full viewport width.
+    // It's not ideal, but it works for a quick demo.
     <div style={{
       minHeight: '100vh',
       width: '100vw',
@@ -123,7 +147,7 @@ export default function About() {
         width: '100%',
         background: '#000'
       }}>
-        {/* Animated background orbs */}
+        {/* These are just some decorative orbs for the background. */}
         <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', width: '100%' }}>
           <div style={{
             position: 'absolute',
@@ -150,6 +174,7 @@ export default function About() {
         </div>
 
         <div style={{ position: 'relative', zIndex: 10, maxWidth: '900px', textAlign: 'center', width: '100%' }}>
+          {/* A nice little decorative icon to start things off. */}
           <div style={{
             display: 'inline-flex',
             padding: '16px',
@@ -168,6 +193,7 @@ export default function About() {
             marginBottom: '24px'
           }}>
             Understanding<br />
+            {/* The gradient text is a nice visual touch. */}
             <span style={{
               background: 'linear-gradient(90deg, #a78bfa, #ec4899)',
               WebkitBackgroundClip: 'text',
@@ -249,6 +275,7 @@ export default function About() {
               color: 'transparent',
               marginBottom: '8px'
             }}>
+              {/* Display the animated counter, with a fallback for the initial render. */}
               {postsCount > 0 ? postsCount.toLocaleString() + '+' : '1.2M+'}
             </div>
             <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)' }}>Posts Analyzed Daily</div>
@@ -316,8 +343,10 @@ export default function About() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: '24px'
         }}>
+          {/* Map over the features array to render the feature cards. */}
           {features.map((feature, i) => {
             const Icon = feature.icon;
+            // Check if the current card is being hovered.
             const isHovered = hoveredCard === i;
             return (
               <div
@@ -332,6 +361,7 @@ export default function About() {
                   padding: '32px',
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
+                  // A little "lift" effect on hover.
                   transform: isHovered ? 'translateY(-8px)' : 'translateY(0)',
                   borderColor: isHovered ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)'
                 }}
@@ -342,6 +372,7 @@ export default function About() {
                   borderRadius: '16px',
                   background: `linear-gradient(135deg, ${feature.color.from}, ${feature.color.to})`,
                   marginBottom: '20px',
+                  // A subtle scale and rotate effect for the icon.
                   transform: isHovered ? 'scale(1.1) rotate(5deg)' : 'scale(1)',
                   transition: 'transform 0.3s ease'
                 }}>
@@ -350,6 +381,7 @@ export default function About() {
 
                 <h3 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '12px' }}>{feature.title}</h3>
                 <p style={{ color: 'rgba(255,255,255,0.7)', lineHeight: '1.6', marginBottom: '16px' }}>{feature.desc}</p>
+                {/* A little colored tag for the metric. */}
                 <div style={{
                   display: 'inline-block',
                   padding: '6px 12px',
@@ -376,8 +408,10 @@ export default function About() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {steps.map((step, i) => (
+            // This is the accordion-style container for each step.
             <div
               key={i}
+              // Toggle the expanded state when clicked.
               onClick={() => setExpandedStep(expandedStep === i ? null : i)}
               style={{
                 background: 'rgba(255,255,255,0.02)',
@@ -406,6 +440,7 @@ export default function About() {
                   <h3 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '4px' }}>{step.title}</h3>
                   <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '15px' }}>{step.desc}</p>
                 </div>
+                {/* The chevron icon that rotates when the step is expanded. */}
                 <ChevronRight style={{
                   width: '24px',
                   height: '24px',
@@ -414,6 +449,7 @@ export default function About() {
                   transition: 'transform 0.3s ease'
                 }} />
               </div>
+              {/* Conditionally render the detailed description. */}
               {expandedStep === i && (
                 <p style={{
                   marginTop: '16px',
@@ -464,6 +500,7 @@ export default function About() {
         MindSight © 2025 — Empowering mental health awareness through AI
       </footer>
 
+      {/* This is a simple way to inject CSS animations into the page. */}
       <style>{`
         @keyframes float {
           0%, 100% { transform: translate(0, 0); }
