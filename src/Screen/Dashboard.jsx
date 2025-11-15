@@ -1,4 +1,7 @@
+// Core React imports
 import React, { useEffect, useState, useMemo } from 'react';
+
+// Chart pieces from Recharts
 import {
   ResponsiveContainer,
   AreaChart,
@@ -8,6 +11,8 @@ import {
   YAxis,
   Tooltip as RechartsTooltip,
 } from 'recharts';
+
+// Icons from lucide-react (just for visuals in the UI)
 import {
   Heart,
   Activity,
@@ -21,10 +26,8 @@ import {
   Filter,
 } from 'lucide-react';
 
-// ============================================================================
-// MOCK DATA
-// ============================================================================
-
+// Basic time series data for 3 ranges – 24h, 7d, 30d.
+// This is all hard-coded placeholder data so the charts have something to render.
 const mockData = {
   '24h': [
     { date: '12AM', positive: 25, negative: 48, neutral: 18 },
@@ -51,6 +54,8 @@ const mockData = {
   ],
 };
 
+// List of common emotion-related keywords + rough frequency and polarity.
+// Again, this is just dummy data to drive the "Trending keywords" widget.
 const keywords = [
   { word: 'Anxious', freq: 18900, sentiment: 'negative' },
   { word: 'Stressed', freq: 15300, sentiment: 'negative' },
@@ -64,6 +69,7 @@ const keywords = [
   { word: 'Peaceful', freq: 5800, sentiment: 'positive' },
 ];
 
+// Simple geographic “heatmap” style data – region, intensity and tone.
 const geographicData = [
   { region: 'North America', intensity: 52, tone: 'negative' },
   { region: 'Europe', intensity: 45, tone: 'neutral' },
@@ -73,87 +79,142 @@ const geographicData = [
   { region: 'Oceania', intensity: 35, tone: 'positive' },
 ];
 
-// ============================================================================
-// ANIMATED COUNTER
-// ============================================================================
 
+// Small helper hook to animate a number smoothly from 0 → target.
+// Used in KPI tiles so the percentages/counts feel more alive.
 const useCounter = (target = 0, duration = 900) => {
   const [val, setVal] = useState(0);
+
   useEffect(() => {
     let start;
+
     const step = (t) => {
       if (!start) start = t;
-      const p = Math.min((t - start) / duration, 1);
-      setVal(Math.round(p * target));
-      if (p < 1) requestAnimationFrame(step);
+      const p = Math.min((t - start) / duration, 1); // progress (0–1)
+      setVal(Math.round(p * target));               // scale to target
+      if (p < 1) requestAnimationFrame(step);       // keep going until done
     };
+
     requestAnimationFrame(step);
   }, [target, duration]);
+
   return val;
 };
 
+// Compact number formatter – takes 18900 → "18.9K", etc.
 const num = (n) => Intl.NumberFormat('en', { notation: 'compact' }).format(n);
 
-// ============================================================================
-// REDESIGNED KPI CARD
-// ============================================================================
 
+// Single KPI tile: icon, title, big % value, delta chip, and description.
 const KPICard = ({ title, valuePct, delta, deltaDir, subtitle, icon: Icon, color }) => {
+  // Animated percentage value for this KPI.
   const val = useCounter(valuePct);
+
+  // Values to draw the circular progress “ring” around the percentage.
   const radius = 32;
   const circumference = 2 * Math.PI * radius;
   const progress = (valuePct / 100) * circumference;
 
   return (
-    <div style={{
-      position: 'relative',
-      overflow: 'hidden',
-      borderRadius: '16px',
-      background: 'rgba(12,15,20,0.6)',
-      backdropFilter: 'blur(8px)',
-      border: '1px solid rgba(255,255,255,0.06)',
-      padding: '20px',
-      transition: 'all 0.3s ease'
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.transform = 'translateY(-4px)';
-      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.transform = 'translateY(0)';
-      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
-    }}
+    <div
+      style={{
+        position: 'relative',
+        overflow: 'hidden',
+        borderRadius: '16px',
+        background: 'rgba(12,15,20,0.6)',
+        backdropFilter: 'blur(8px)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        padding: '20px',
+        transition: 'all 0.3s ease',
+      }}
+      // Slight hover lift + stronger border.
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-4px)';
+        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+      }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-        <div style={{
-          width: '48px',
-          height: '48px',
-          borderRadius: '12px',
-          background: color === 'green' ? 'rgba(16,185,129,0.1)' : 
-                      color === 'red' ? 'rgba(239,68,68,0.1)' : 
-                      color === 'blue' ? 'rgba(59,130,246,0.1)' : 'rgba(148,163,184,0.1)',
-          border: color === 'green' ? '1px solid rgba(16,185,129,0.2)' : 
-                  color === 'red' ? '1px solid rgba(239,68,68,0.2)' : 
-                  color === 'blue' ? '1px solid rgba(59,130,246,0.2)' : '1px solid rgba(148,163,184,0.2)',
+      {/* Top row: left icon, right circular meter */}
+      <div
+        style={{
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
-          <Icon style={{
-            width: '24px',
-            height: '24px',
-            color: color === 'green' ? '#10b981' : 
-                   color === 'red' ? '#ef4444' : 
-                   color === 'blue' ? '#3b82f6' : '#94a3b8'
-          }} />
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: '16px',
+        }}
+      >
+        {/* Icon bucket – color is based on the sentiment “color” prop. */}
+        <div
+          style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
+            background:
+              color === 'green'
+                ? 'rgba(16,185,129,0.1)'
+                : color === 'red'
+                ? 'rgba(239,68,68,0.1)'
+                : color === 'blue'
+                ? 'rgba(59,130,246,0.1)'
+                : 'rgba(148,163,184,0.1)',
+            border:
+              color === 'green'
+                ? '1px solid rgba(16,185,129,0.2)'
+                : color === 'red'
+                ? '1px solid rgba(239,68,68,0.2)'
+                : color === 'blue'
+                ? '1px solid rgba(59,130,246,0.2)'
+                : '1px solid rgba(148,163,184,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon
+            style={{
+              width: '24px',
+              height: '24px',
+              color:
+                color === 'green'
+                  ? '#10b981'
+                  : color === 'red'
+                  ? '#ef4444'
+                  : color === 'blue'
+                  ? '#3b82f6'
+                  : '#94a3b8',
+            }}
+          />
         </div>
 
+        {/* Right-hand circular progress + value in the middle. */}
         <div style={{ position: 'relative', width: '72px', height: '72px' }}>
           <svg width="72" height="72" style={{ transform: 'rotate(-90deg)' }}>
-            <circle cx="36" cy="36" r={radius} stroke="rgba(148,163,184,0.1)" strokeWidth="6" fill="transparent" />
+            {/* Track circle (background) */}
             <circle
-              cx="36" cy="36" r={radius}
-              stroke={color === 'green' ? '#10b981' : color === 'red' ? '#ef4444' : color === 'blue' ? '#3b82f6' : '#64748b'}
+              cx="36"
+              cy="36"
+              r={radius}
+              stroke="rgba(148,163,184,0.1)"
+              strokeWidth="6"
+              fill="transparent"
+            />
+            {/* Foreground arc showing the actual percentage */}
+            <circle
+              cx="36"
+              cy="36"
+              r={radius}
+              stroke={
+                color === 'green'
+                  ? '#10b981'
+                  : color === 'red'
+                  ? '#ef4444'
+                  : color === 'blue'
+                  ? '#3b82f6'
+                  : '#64748b'
+              }
               strokeWidth="6"
               strokeDasharray={circumference}
               strokeDashoffset={circumference - progress}
@@ -162,54 +223,100 @@ const KPICard = ({ title, valuePct, delta, deltaDir, subtitle, icon: Icon, color
               style={{ transition: 'stroke-dashoffset 0.6s ease' }}
             />
           </svg>
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '18px',
-            fontWeight: '800',
-            color: color === 'green' ? '#10b981' : color === 'red' ? '#ef4444' : color === 'blue' ? '#3b82f6' : '#94a3b8'
-          }}>
+          {/* Percentage value in the center of the ring */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px',
+              fontWeight: '800',
+              color:
+                color === 'green'
+                  ? '#10b981'
+                  : color === 'red'
+                  ? '#ef4444'
+                  : color === 'blue'
+                  ? '#3b82f6'
+                  : '#94a3b8',
+            }}
+          >
             {val}%
           </div>
         </div>
       </div>
 
-      <div style={{
-        fontSize: '11px',
-        fontWeight: '700',
-        color: 'rgba(255,255,255,0.5)',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px',
-        marginBottom: '8px'
-      }}>
+      {/* Small uppercase label above the main number */}
+      <div
+        style={{
+          fontSize: '11px',
+          fontWeight: '700',
+          color: 'rgba(255,255,255,0.5)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          marginBottom: '8px',
+        }}
+      >
         {title}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-        <span style={{
-          fontSize: '28px',
-          fontWeight: '900',
-          color: color === 'green' ? '#34d399' : color === 'red' ? '#fb7185' : color === 'blue' ? '#93c5fd' : '#94a3b8'
-        }}>
-          {val}<span style={{ fontSize: '18px' }}>%</span>
+      {/* Main number + delta chip */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          marginBottom: '8px',
+        }}
+      >
+        <span
+          style={{
+            fontSize: '28px',
+            fontWeight: '900',
+            color:
+              color === 'green'
+                ? '#34d399'
+                : color === 'red'
+                ? '#fb7185'
+                : color === 'blue'
+                ? '#93c5fd'
+                : '#94a3b8',
+          }}
+        >
+          {val}
+          <span style={{ fontSize: '18px' }}>%</span>
         </span>
-        <span style={{
-          fontSize: '12px',
-          fontWeight: '700',
-          padding: '4px 8px',
-          borderRadius: '6px',
-          background: color === 'green' ? 'rgba(16,185,129,0.1)' : 
-                      color === 'red' ? 'rgba(239,68,68,0.1)' : 
-                      color === 'blue' ? 'rgba(59,130,246,0.1)' : 'rgba(148,163,184,0.1)',
-          color: color === 'green' ? '#34d399' : color === 'red' ? '#fb7185' : color === 'blue' ? '#93c5fd' : '#94a3b8'
-        }}>
+        <span
+          style={{
+            fontSize: '12px',
+            fontWeight: '700',
+            padding: '4px 8px',
+            borderRadius: '6px',
+            background:
+              color === 'green'
+                ? 'rgba(16,185,129,0.1)'
+                : color === 'red'
+                ? 'rgba(239,68,68,0.1)'
+                : color === 'blue'
+                ? 'rgba(59,130,246,0.1)'
+                : 'rgba(148,163,184,0.1)',
+            color:
+              color === 'green'
+                ? '#34d399'
+                : color === 'red'
+                ? '#fb7185'
+                : color === 'blue'
+                ? '#93c5fd'
+                : '#94a3b8',
+          }}
+        >
           {deltaDir === 'up' ? '▲' : '▼'} {delta}
         </span>
       </div>
 
+      {/* Short descriptive subtitle under the number */}
       <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>
         {subtitle}
       </div>
@@ -217,15 +324,14 @@ const KPICard = ({ title, valuePct, delta, deltaDir, subtitle, icon: Icon, color
   );
 };
 
-// ============================================================================
-// KEYWORD CARD WITH STUNNING HOVER EFFECTS
-// ============================================================================
 
+// Small pill-card for a single keyword row in the “Trending keywords” panel.
 const KeywordCard = ({ word, freq, sentiment }) => {
   const [isHovered, setIsHovered] = useState(false);
-  
+
   return (
     <div
+      // Track simple hover state to drive the little visual effects.
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{
@@ -235,257 +341,730 @@ const KeywordCard = ({ word, freq, sentiment }) => {
         border: '1px solid rgba(255,255,255,0.06)',
         cursor: 'pointer',
         transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-        background: sentiment === 'positive' 
-          ? (isHovered ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.03)') 
-          : (isHovered ? 'rgba(239,68,68,0.12)' : 'rgba(239,68,68,0.03)'),
+        background:
+          sentiment === 'positive'
+            ? isHovered
+              ? 'rgba(16,185,129,0.12)'
+              : 'rgba(16,185,129,0.03)'
+            : isHovered
+            ? 'rgba(239,68,68,0.12)'
+            : 'rgba(239,68,68,0.03)',
         transform: isHovered ? 'translateY(-6px) scale(1.02)' : 'translateY(0) scale(1)',
-        borderColor: isHovered 
-          ? (sentiment === 'positive' ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)') 
+        borderColor: isHovered
+          ? sentiment === 'positive'
+            ? 'rgba(16,185,129,0.4)'
+            : 'rgba(239,68,68,0.4)'
           : 'rgba(255,255,255,0.06)',
-        boxShadow: isHovered 
-          ? (sentiment === 'positive' 
-            ? '0 12px 32px rgba(16,185,129,0.2), 0 0 0 1px rgba(16,185,129,0.3)' 
-            : '0 12px 32px rgba(239,68,68,0.2), 0 0 0 1px rgba(239,68,68,0.3)')
+        boxShadow: isHovered
+          ? sentiment === 'positive'
+            ? '0 12px 32px rgba(16,185,129,0.2), 0 0 0 1px rgba(16,185,129,0.3)'
+            : '0 12px 32px rgba(239,68,68,0.2), 0 0 0 1px rgba(239,68,68,0.3)'
           : 'none',
-        overflow: 'hidden'
+        overflow: 'hidden',
       }}
     >
-      {/* Animated gradient overlay */}
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        background: sentiment === 'positive' 
-          ? 'linear-gradient(135deg, rgba(16,185,129,0.2), transparent)' 
-          : 'linear-gradient(135deg, rgba(239,68,68,0.2), transparent)',
-        opacity: isHovered ? 1 : 0,
-        transition: 'opacity 0.4s ease'
-      }} />
+      {/* Soft gradient that fades in on hover, just for a bit of depth. */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background:
+            sentiment === 'positive'
+              ? 'linear-gradient(135deg, rgba(16,185,129,0.2), transparent)'
+              : 'linear-gradient(135deg, rgba(239,68,68,0.2), transparent)',
+          opacity: isHovered ? 1 : 0,
+          transition: 'opacity 0.4s ease',
+        }}
+      />
 
-      {/* Shine effect */}
-      <div style={{
-        position: 'absolute',
-        top: '-50%',
-        left: '-50%',
-        width: '200%',
-        height: '200%',
-        background: 'linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent)',
-        transform: isHovered ? 'translate(50%, 50%)' : 'translate(-100%, -100%)',
-        transition: 'transform 0.6s ease',
-        pointerEvents: 'none'
-      }} />
+      {/* Diagonal "shine" sweep effect when the card is hovered. */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '-50%',
+          left: '-50%',
+          width: '200%',
+          height: '200%',
+          background:
+            'linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent)',
+          transform: isHovered ? 'translate(50%, 50%)' : 'translate(-100%, -100%)',
+          transition: 'transform 0.6s ease',
+          pointerEvents: 'none',
+        }}
+      />
 
-      {/* Content */}
-      <div style={{ 
-        position: 'relative', 
-        zIndex: 1,
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center' 
-      }}>
+      {/* Real content of the card goes above the effects. */}
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
         <div style={{ minWidth: 0, flex: 1 }}>
-          <p style={{ 
-            fontWeight: '700',
-            fontSize: isHovered ? '15px' : '14px',
-            whiteSpace: 'nowrap', 
-            overflow: 'hidden', 
-            textOverflow: 'ellipsis', 
-            color: sentiment === 'positive' ? '#34d399' : '#fb7185',
-            transition: 'all 0.3s ease',
-            marginBottom: '4px'
-          }}>
+          <p
+            style={{
+              fontWeight: '700',
+              fontSize: isHovered ? '15px' : '14px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              color: sentiment === 'positive' ? '#34d399' : '#fb7185',
+              transition: 'all 0.3s ease',
+              marginBottom: '4px',
+            }}
+          >
             {word}
           </p>
-          <p style={{ 
-            fontSize: '11px', 
-            color: 'rgba(255,255,255,0.6)',
-            transition: 'color 0.3s ease'
-          }}>
+          <p
+            style={{
+              fontSize: '11px',
+              color: 'rgba(255,255,255,0.6)',
+              transition: 'color 0.3s ease',
+            }}
+          >
             {num(freq)} mentions
           </p>
         </div>
-        
-        <ChevronRight style={{ 
-          width: '18px', 
-          height: '18px', 
-          flexShrink: 0, 
-          color: sentiment === 'positive' ? '#34d399' : '#fb7185',
-          transform: isHovered ? 'translateX(4px)' : 'translateX(0)',
-          transition: 'all 0.3s ease',
-          opacity: isHovered ? 1 : 0.5
-        }} />
+
+        {/* Arrow nudges slightly to the right on hover. */}
+        <ChevronRight
+          style={{
+            width: '18px',
+            height: '18px',
+            flexShrink: 0,
+            color: sentiment === 'positive' ? '#34d399' : '#fb7185',
+            transform: isHovered ? 'translateX(4px)' : 'translateX(0)',
+            transition: 'all 0.3s ease',
+            opacity: isHovered ? 1 : 0.5,
+          }}
+        />
       </div>
 
-      {/* Pulse ring on hover */}
+      {/* Outer pulsing ring that shows up while the card is hovered. */}
       {isHovered && (
-        <div style={{
-          position: 'absolute',
-          inset: '-2px',
-          borderRadius: '12px',
-          border: `2px solid ${sentiment === 'positive' ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)'}`,
-          animation: 'pulse-ring 1.5s ease-out infinite',
-          pointerEvents: 'none'
-        }} />
+        <div
+          style={{
+            position: 'absolute',
+            inset: '-2px',
+            borderRadius: '12px',
+            border: `2px solid ${
+              sentiment === 'positive' ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)'
+            }`,
+            animation: 'pulse-ring 1.5s ease-out infinite',
+            pointerEvents: 'none',
+          }}
+        />
       )}
     </div>
   );
 };
 
-// ============================================================================
-// CHART TOOLTIP
-// ============================================================================
 
+// Custom tooltip component for Recharts so it matches the dark glassy style.
 const ChartTooltip = ({ active, payload, label }) => {
+  // If the tooltip isn't active or no data, just don't render anything.
   if (!active || !payload) return null;
+
   return (
-    <div style={{
-      background: 'rgba(11,14,19,0.95)',
-      border: '1px solid rgba(255,255,255,0.1)',
-      borderRadius: '12px',
-      padding: '12px',
-      backdropFilter: 'blur(8px)'
-    }}>
-      <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px', marginBottom: '8px' }}>{label}</p>
+    <div
+      style={{
+        background: 'rgba(11,14,19,0.95)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: '12px',
+        padding: '12px',
+        backdropFilter: 'blur(8px)',
+      }}
+    >
+      <p
+        style={{
+          color: 'rgba(255,255,255,0.9)',
+          fontSize: '12px',
+          marginBottom: '8px',
+        }}
+      >
+        {label}
+      </p>
+      {/* list out all series values (positive/negative/neutral) */}
       {payload.map((p, i) => (
-        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: '24px', marginBottom: '4px' }}>
-          <span style={{ fontSize: '12px', textTransform: 'capitalize', color: p.color }}>{p.name}</span>
-          <span style={{ fontSize: '13px', fontWeight: '700', color: p.color }}>{p.value}%</span>
+        <div
+          key={i}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: '24px',
+            marginBottom: '4px',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '12px',
+              textTransform: 'capitalize',
+              color: p.color,
+            }}
+          >
+            {p.name}
+          </span>
+          <span
+            style={{
+              fontSize: '13px',
+              fontWeight: '700',
+              color: p.color,
+            }}
+          >
+            {p.value}%
+          </span>
         </div>
       ))}
     </div>
   );
 };
 
-// ============================================================================
-// MAIN DASHBOARD
-// ============================================================================
 
+// Main exported component that ties together all cards, charts, and grids.
 export default function Dashboard() {
+  // Which time window we're looking at in the chart.
   const [timeRange, setTimeRange] = useState('7d');
+  // Which sentiment group is active in the keyword list.
   const [sentimentFilter, setSentimentFilter] = useState('all');
 
+  // Choose which chunk of mockData to feed to the chart.
   const chartData = mockData[timeRange];
 
+  // Filter and sort keywords whenever the sentiment filter changes.
   const filteredKeywords = useMemo(() => {
-    const filtered = sentimentFilter === 'all' ? keywords : keywords.filter(k => k.sentiment === sentimentFilter);
+    const filtered =
+      sentimentFilter === 'all'
+        ? keywords
+        : keywords.filter((k) => k.sentiment === sentimentFilter);
+
+    // sort high → low frequency so larger signals appear first
     return filtered.sort((a, b) => b.freq - a.freq);
   }, [sentimentFilter]);
 
   return (
     <div style={{ minHeight: '100vh', background: 'transparent' }}>
-      <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1400px', margin: '0 auto' }}>
-        
-        {/* Status row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>
+      <div
+        style={{
+          padding: '24px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '24px',
+          maxWidth: '1400px',
+          margin: '0 auto',
+        }}
+      >
+        {/* Little status strip at the top: last updated, what view, etc. */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            fontSize: '12px',
+            color: 'rgba(255,255,255,0.5)',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Calendar style={{ width: '14px', height: '14px' }} />
             <span>Updated: just now</span>
           </div>
-          <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)' }} />
+          <span
+            style={{
+              width: '4px',
+              height: '4px',
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.2)',
+            }}
+          />
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Eye style={{ width: '14px', height: '14px' }} />
             <span>Real-time overview</span>
           </div>
         </div>
 
-        {/* KPI Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-          <KPICard title="Positive" valuePct={34} delta="+5.2%" deltaDir="up" subtitle="Happiness & Gratitude" icon={Heart} color="green" />
-          <KPICard title="Negative" valuePct={52} delta="+2.8%" deltaDir="up" subtitle="Anxiety & Stress" icon={Activity} color="red" />
-          <KPICard title="Neutral" valuePct={14} delta="-1.5%" deltaDir="down" subtitle="Informational Posts" icon={MessageSquare} color="gray" />
-          <KPICard title="Posts Analyzed" valuePct={80} delta="+12.3%" deltaDir="up" subtitle="1.2M in last 7d" icon={Users} color="blue" />
+        {/* Row of 4 KPI cards */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: '16px',
+          }}
+        >
+          <KPICard
+            title="Positive"
+            valuePct={34}
+            delta="+5.2%"
+            deltaDir="up"
+            subtitle="Happiness & Gratitude"
+            icon={Heart}
+            color="green"
+          />
+          <KPICard
+            title="Negative"
+            valuePct={52}
+            delta="+2.8%"
+            deltaDir="up"
+            subtitle="Anxiety & Stress"
+            icon={Activity}
+            color="red"
+          />
+          <KPICard
+            title="Neutral"
+            valuePct={14}
+            delta="-1.5%"
+            deltaDir="down"
+            subtitle="Informational Posts"
+            icon={MessageSquare}
+            color="gray"
+          />
+          <KPICard
+            title="Posts Analyzed"
+            valuePct={80}
+            delta="+12.3%"
+            deltaDir="up"
+            subtitle="1.2M in last 7d"
+            icon={Users}
+            color="blue"
+          />
         </div>
 
-        {/* Charts */}
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
-          <div style={{ background: 'rgba(12,15,20,0.7)', backdropFilter: 'blur(8px)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        {/* Middle section: left is time-series chart, right is keywords */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '2fr 1fr',
+            gap: '16px',
+          }}
+        >
+          {/* Main sentiment-over-time chart block */}
+          <div
+            style={{
+              background: 'rgba(12,15,20,0.7)',
+              backdropFilter: 'blur(8px)',
+              borderRadius: '16px',
+              border: '1px solid rgba(255,255,255,0.05)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '18px',
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
+              }}
+            >
               <div>
-                <h3 style={{ fontWeight: '600', fontSize: '16px' }}>Sentiment over time</h3>
-                <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px' }}>Track how emotions evolve day by day</p>
+                <h3 style={{ fontWeight: '600', fontSize: '16px' }}>
+                  Sentiment over time
+                </h3>
+                <p
+                  style={{
+                    color: 'rgba(255,255,255,0.6)',
+                    fontSize: '13px',
+                  }}
+                >
+                  Track how emotions evolve day by day
+                </p>
               </div>
-              <select value={timeRange} onChange={(e) => setTimeRange(e.target.value)} style={{ background: 'rgba(11,14,19,1)', border: '1px solid rgba(255,255,255,0.08)', padding: '8px 12px', borderRadius: '12px', color: 'rgba(255,255,255,0.85)', cursor: 'pointer' }}>
+              {/* Simple select to flip between 24h / 7d / 30d data sets */}
+              <select
+                value={timeRange}
+                onChange={(e) => setTimeRange(e.target.value)}
+                style={{
+                  background: 'rgba(11,14,19,1)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  padding: '8px 12px',
+                  borderRadius: '12px',
+                  color: 'rgba(255,255,255,0.85)',
+                  cursor: 'pointer',
+                }}
+              >
                 <option value="24h">Last 24h</option>
                 <option value="7d">Last 7d</option>
                 <option value="30d">Last 30d</option>
               </select>
             </div>
+
             <div style={{ padding: '18px' }}>
               <ResponsiveContainer width="100%" height={320}>
-                <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <AreaChart
+                  data={chartData}
+                  margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                >
+                  {/* Gradient fills for the 3 curves */}
                   <defs>
                     <linearGradient id="pos" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.45} />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.06} />
+                      <stop
+                        offset="5%"
+                        stopColor="#10b981"
+                        stopOpacity={0.45}
+                      />
+                      <stop
+                        offset="95%"
+                        stopColor="#10b981"
+                        stopOpacity={0.06}
+                      />
                     </linearGradient>
                     <linearGradient id="neg" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.45} />
-                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0.06} />
+                      <stop
+                        offset="5%"
+                        stopColor="#ef4444"
+                        stopOpacity={0.45}
+                      />
+                      <stop
+                        offset="95%"
+                        stopColor="#ef4444"
+                        stopOpacity={0.06}
+                      />
                     </linearGradient>
                     <linearGradient id="neu" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#64748b" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="#64748b" stopOpacity={0.05} />
+                      <stop
+                        offset="5%"
+                        stopColor="#64748b"
+                        stopOpacity={0.35}
+                      />
+                      <stop
+                        offset="95%"
+                        stopColor="#64748b"
+                        stopOpacity={0.05}
+                      />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="2 4" stroke="#334155" opacity={0.25} />
-                  <XAxis dataKey="date" stroke="#94a3b8" tickLine={false} style={{ fontSize: '12px' }} />
-                  <YAxis stroke="#94a3b8" tickLine={false} style={{ fontSize: '12px' }} />
+
+                  <CartesianGrid
+                    strokeDasharray="2 4"
+                    stroke="#334155"
+                    opacity={0.25}
+                  />
+                  <XAxis
+                    dataKey="date"
+                    stroke="#94a3b8"
+                    tickLine={false}
+                    style={{ fontSize: '12px' }}
+                  />
+                  <YAxis
+                    stroke="#94a3b8"
+                    tickLine={false}
+                    style={{ fontSize: '12px' }}
+                  />
                   <RechartsTooltip content={<ChartTooltip />} />
-                  <Area type="monotone" dataKey="negative" stroke="#ef4444" strokeWidth={2.5} fill="url(#neg)" name="negative" />
-                  <Area type="monotone" dataKey="positive" stroke="#10b981" strokeWidth={2.5} fill="url(#pos)" name="positive" />
-                  <Area type="monotone" dataKey="neutral" stroke="#64748b" strokeWidth={2} fill="url(#neu)" name="neutral" />
+
+                  {/* Order of areas affects what overlaps what visually */}
+                  <Area
+                    type="monotone"
+                    dataKey="negative"
+                    stroke="#ef4444"
+                    strokeWidth={2.5}
+                    fill="url(#neg)"
+                    name="negative"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="positive"
+                    stroke="#10b981"
+                    strokeWidth={2.5}
+                    fill="url(#pos)"
+                    name="positive"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="neutral"
+                    stroke="#64748b"
+                    strokeWidth={2}
+                    fill="url(#neu)"
+                    name="neutral"
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div style={{ background: 'rgba(12,15,20,0.7)', backdropFilter: 'blur(8px)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          {/* Right side: trending keywords with sentiment filter */}
+          <div
+            style={{
+              background: 'rgba(12,15,20,0.7)',
+              backdropFilter: 'blur(8px)',
+              borderRadius: '16px',
+              border: '1px solid rgba(255,255,255,0.05)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '18px',
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
+              }}
+            >
               <div>
-                <h3 style={{ fontWeight: '600', fontSize: '16px' }}>Trending keywords</h3>
-                <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px' }}>Most mentioned emotions</p>
+                <h3 style={{ fontWeight: '600', fontSize: '16px' }}>
+                  Trending keywords
+                </h3>
+                <p
+                  style={{
+                    color: 'rgba(255,255,255,0.6)',
+                    fontSize: '13px',
+                  }}
+                >
+                  Most mentioned emotions
+                </p>
               </div>
+
+              {/* Filter chips for All / Positive / Negative */}
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={() => setSentimentFilter('all')} style={{ padding: '6px 10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', background: sentimentFilter === 'all' ? 'rgba(255,255,255,0.04)' : 'transparent', color: sentimentFilter === 'all' ? '#fff' : 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>All</button>
-                <button onClick={() => setSentimentFilter('positive')} style={{ padding: '6px 10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', background: sentimentFilter === 'positive' ? 'rgba(16,185,129,0.08)' : 'transparent', color: sentimentFilter === 'positive' ? '#34d399' : 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>Positive</button>
-                <button onClick={() => setSentimentFilter('negative')} style={{ padding: '6px 10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', background: sentimentFilter === 'negative' ? 'rgba(239,68,68,0.08)' : 'transparent', color: sentimentFilter === 'negative' ? '#fb7185' : 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>Negative</button>
+                <button
+                  onClick={() => setSentimentFilter('all')}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    background:
+                      sentimentFilter === 'all'
+                        ? 'rgba(255,255,255,0.04)'
+                        : 'transparent',
+                    color:
+                      sentimentFilter === 'all'
+                        ? '#fff'
+                        : 'rgba(255,255,255,0.6)',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                  }}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setSentimentFilter('positive')}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    background:
+                      sentimentFilter === 'positive'
+                        ? 'rgba(16,185,129,0.08)'
+                        : 'transparent',
+                    color:
+                      sentimentFilter === 'positive'
+                        ? '#34d399'
+                        : 'rgba(255,255,255,0.6)',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                  }}
+                >
+                  Positive
+                </button>
+                <button
+                  onClick={() => setSentimentFilter('negative')}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    background:
+                      sentimentFilter === 'negative'
+                        ? 'rgba(239,68,68,0.08)'
+                        : 'transparent',
+                    color:
+                      sentimentFilter === 'negative'
+                        ? '#fb7185'
+                        : 'rgba(255,255,255,0.6)',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                  }}
+                >
+                  Negative
+                </button>
               </div>
             </div>
+
+            {/* Grid of the keyword pills */}
             <div style={{ padding: '18px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '12px' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2,1fr)',
+                  gap: '12px',
+                }}
+              >
                 {filteredKeywords.map((k, i) => (
-                  <KeywordCard key={i} word={k.word} freq={k.freq} sentiment={k.sentiment} />
+                  <KeywordCard
+                    key={i}
+                    word={k.word}
+                    freq={k.freq}
+                    sentiment={k.sentiment}
+                  />
                 ))}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Geographic section */}
-        <div style={{ background: 'rgba(12,15,20,0.7)', backdropFilter: 'blur(8px)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        {/* Bottom: geographic sentiment blocks */}
+        <div
+          style={{
+            background: 'rgba(12,15,20,0.7)',
+            backdropFilter: 'blur(8px)',
+            borderRadius: '16px',
+            border: '1px solid rgba(255,255,255,0.05)',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '18px',
+              borderBottom: '1px solid rgba(255,255,255,0.05)',
+            }}
+          >
             <div>
-              <h3 style={{ fontWeight: '600', fontSize: '16px' }}>Geographic sentiment</h3>
-              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px' }}>Regional patterns and intensity</p>
+              <h3 style={{ fontWeight: '600', fontSize: '16px' }}>
+                Geographic sentiment
+              </h3>
+              <p
+                style={{
+                  color: 'rgba(255,255,255,0.6)',
+                  fontSize: '13px',
+                }}
+              >
+                Regional patterns and intensity
+              </p>
             </div>
-            <button style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: 'rgba(255,255,255,0.8)', cursor: 'pointer' }}>
+            {/* This button is mostly cosmetic at the moment. */}
+            <button
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 10px',
+                borderRadius: '10px',
+                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'transparent',
+                color: 'rgba(255,255,255,0.8)',
+                cursor: 'pointer',
+              }}
+            >
               <Filter style={{ width: '16px', height: '16px' }} />
               <span style={{ fontSize: '13px' }}>Filter</span>
             </button>
           </div>
+
+          {/* 3-column grid of region tiles */}
           <div style={{ padding: '18px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr 1fr',
+                gap: '16px',
+              }}
+            >
               {geographicData.map((r, i) => (
-                <div key={i} style={{ background: 'rgba(11,14,19,0.8)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <span style={{ fontWeight: '600', fontSize: '15px', color: '#fff' }}>{r.region}</span>
-                    <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '999px', background: r.tone === 'positive' ? 'rgba(16,185,129,0.08)' : r.tone === 'negative' ? 'rgba(239,68,68,0.08)' : 'rgba(148,163,184,0.06)', color: r.tone === 'positive' ? '#34d399' : r.tone === 'negative' ? '#fb7185' : '#94a3b8', fontWeight: '600' }}>{r.tone}</span>
+                <div
+                  key={i}
+                  style={{
+                    background: 'rgba(11,14,19,0.8)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '12px',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontWeight: '600',
+                        fontSize: '15px',
+                        color: '#fff',
+                      }}
+                    >
+                      {r.region}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        padding: '4px 8px',
+                        borderRadius: '999px',
+                        background:
+                          r.tone === 'positive'
+                            ? 'rgba(16,185,129,0.08)'
+                            : r.tone === 'negative'
+                            ? 'rgba(239,68,68,0.08)'
+                            : 'rgba(148,163,184,0.06)',
+                        color:
+                          r.tone === 'positive'
+                            ? '#34d399'
+                            : r.tone === 'negative'
+                            ? '#fb7185'
+                            : '#94a3b8',
+                        fontWeight: '600',
+                      }}
+                    >
+                      {r.tone}
+                    </span>
                   </div>
-                  <div style={{ height: '8px', background: 'rgba(255,255,255,0.04)', borderRadius: '999px', overflow: 'hidden', marginBottom: '12px' }}>
-                    <div style={{ height: '100%', width: `${r.intensity}%`, background: r.tone === 'positive' ? '#34d399' : r.tone === 'negative' ? '#fb7185' : '#94a3b8', borderRadius: '999px' }} />
+
+                  {/* Simple horizontal bar to visualize “intensity” */}
+                  <div
+                    style={{
+                      height: '8px',
+                      background: 'rgba(255,255,255,0.04)',
+                      borderRadius: '999px',
+                      overflow: 'hidden',
+                      marginBottom: '12px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: '100%',
+                        width: `${r.intensity}%`,
+                        background:
+                          r.tone === 'positive'
+                            ? '#34d399'
+                            : r.tone === 'negative'
+                            ? '#fb7185'
+                            : '#94a3b8',
+                        borderRadius: '999px',
+                      }}
+                    />
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                    <span style={{ color: 'rgba(255,255,255,0.5)' }}>Intensity</span>
-                    <span style={{ fontWeight: '700', color: r.tone === 'positive' ? '#34d399' : r.tone === 'negative' ? '#fb7185' : '#94a3b8' }}>{r.intensity}%</span>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '12px',
+                    }}
+                  >
+                    <span style={{ color: 'rgba(255,255,255,0.5)' }}>
+                      Intensity
+                    </span>
+                    <span
+                      style={{
+                        fontWeight: '700',
+                        color:
+                          r.tone === 'positive'
+                            ? '#34d399'
+                            : r.tone === 'negative'
+                            ? '#fb7185'
+                            : '#94a3b8',
+                      }}
+                    >
+                      {r.intensity}%
+                    </span>
                   </div>
                 </div>
               ))}
@@ -494,6 +1073,7 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Tiny injected CSS for the pulse animations used on KeywordCard */}
       <style>{`
         @keyframes pulse {
           0%, 100% { opacity: 1; }
